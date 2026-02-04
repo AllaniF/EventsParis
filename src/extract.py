@@ -3,8 +3,7 @@ from pymongo import MongoClient
 from datetime import datetime
 
 def get_mongo_client():
-    # Connexion à MongoDB (utilise le nom du service défini dans docker-compose)
-    # Si vous lancez le script HORS docker, remplacez 'mongodb' par 'localhost'
+   
     MongoClient(
         host="mongodb",
         port=27017,
@@ -32,9 +31,9 @@ def save_to_mongo(data):
     print(f"--- {len(result.inserted_ids)} documents insérés dans MongoDB ---")
     client.close()
 
-def fetch_paris_events(limit=20, offset=0):
+def fetch_paris_events( offset=0):
     base_url = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records"
-    params = {'limit': limit, 'offset': offset}
+    params = { 'offset': offset}
 
     try:
         print(f"Extraction de {limit} événements...")
@@ -50,7 +49,7 @@ def fetch_paris_events(limit=20, offset=0):
 
 if __name__ == "__main__":
     # 1. Extraction
-    raw_data = fetch_paris_events(limit=20)
+    raw_data = fetch_paris_events()
     
     # 2. Stockage dans le Datalake
     if raw_data:

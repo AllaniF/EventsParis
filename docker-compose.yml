@@ -41,7 +41,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: airflow webserver
+    command: bash -c "airflow db migrate && airflow webserver"
     networks:
       - eventsparis_network
 
@@ -65,7 +65,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: airflow scheduler
+    command: bash -c "airflow db migrate && airflow scheduler"
     networks:
       - eventsparis_network
 
