@@ -23,7 +23,7 @@ services:
 
   # Apache Airflow Webserver
   airflow_webserver:
-    image: apache/airflow:2.7.3
+    build: .
     container_name: airflow_webserver
     environment:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
@@ -37,16 +37,19 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
+      - ./src:/opt/airflow/src
     depends_on:
       postgres:
         condition: service_healthy
-    command: bash -c "airflow db init && airflow webserver"
+    command: airflow webserver
     networks:
       - eventsparis_network
 
+
+
   # Apache Airflow Scheduler
   airflow_scheduler:
-    image: apache/airflow:2.7.3
+    build: .
     container_name: airflow_scheduler
     environment:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
@@ -65,6 +68,8 @@ services:
     command: airflow scheduler
     networks:
       - eventsparis_network
+
+
 
   # Zookeeper (required for Kafka)
   zookeeper:
@@ -128,11 +133,25 @@ services:
       - prometheus
     networks:
       - eventsparis_network
+  
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb_eventsparis
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - eventsparis_network
 
 volumes:
   postgres_data:
   prometheus_data:
   grafana_data:
+  mongo_data:
 
 networks:
   eventsparis_network:
