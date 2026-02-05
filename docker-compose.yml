@@ -144,6 +144,21 @@ services:
     networks:
       - eventsparis_network
 
+  mongodb_exporter:
+    image: percona/mongodb_exporter:0.40.0
+    container_name: mongodb_exporter_eventsparis
+    environment:
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/?authSource=admin
+    command:
+      - "--collect-all"
+    ports:
+      - "9216:9216"
+    depends_on:
+      - mongodb
+    networks:
+      - eventsparis_network
+
+
   # Grafana
   grafana:
     image: grafana/grafana:latest
@@ -156,7 +171,9 @@ services:
       GF_INSTALL_PLUGINS: 'grafana-clock-panel,grafana-simple-json-datasource,grafana-worldmap-panel'
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning/datasources/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ./grafana/provisioning/dashboards/mongo_dashboard.json:/var/lib/grafana/dashboards/mongo_dashboard.json
     depends_on:
       - prometheus
     networks:
@@ -194,6 +211,7 @@ services:
       - mongo_data:/data/db
     networks:
       - eventsparis_network
+
 
 volumes:
   postgres_data:
