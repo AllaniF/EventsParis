@@ -162,6 +162,26 @@ services:
     networks:
       - eventsparis_network
 
+  # Initial Data Loading Service (ETL)
+  etl_init:
+    build: .
+    container_name: etl_init
+    environment:
+      # Use the same generic airflow user ID defined elsewhere or default to 50000
+      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
+      PYTHONPATH: /opt/airflow/src
+    volumes:
+      - ./src:/opt/airflow/src:z
+    depends_on:
+      - mongodb
+    # Restart only if it fails (e.g., if mongo is not ready yet)
+    restart: on-failure
+    # Install dependencies and run the extraction script
+    command: >
+      bash -c "pip install pymongo requests && python /opt/airflow/src/extract.py"
+    networks:
+      - eventsparis_network
+
   mongodb:
     image: mongo:latest
     container_name: mongodb_eventsparis
