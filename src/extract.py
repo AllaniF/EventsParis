@@ -1,12 +1,15 @@
 import requests
+import os
 from pymongo import MongoClient
 from datetime import datetime
 
 def get_mongo_client():
-   
+    mongo_host = os.getenv('MONGO_HOST', 'mongodb')
+    mongo_port = int(os.getenv('MONGO_PORT', 27017))
+
     client = MongoClient(
-        host="mongodb",
-        port=27017,
+        host=mongo_host,
+        port=mongo_port,
         username="admin",
         password="password",
         authSource="admin"

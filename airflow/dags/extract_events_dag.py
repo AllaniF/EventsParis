@@ -13,3 +13,10 @@ with DAG(
         task_id="extract_events",
         bash_command="python /opt/airflow/src/extract.py"
     )
+
+    transform = BashOperator(
+        task_id="transform_load_events",
+        bash_command="python /opt/airflow/src/transform_load.py"
+    )
+
+    extract >> transform
