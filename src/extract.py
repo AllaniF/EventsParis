@@ -1,15 +1,15 @@
 import requests
-import os
+import time
 from pymongo import MongoClient
 from datetime import datetime
 
 def get_mongo_client():
-    mongo_host = os.getenv('MONGO_HOST', 'mongodb')
-    mongo_port = int(os.getenv('MONGO_PORT', 27017))
-
+    """
+    Configuration de la connexion MongoDB
+    """
     client = MongoClient(
-        host=mongo_host,
-        port=mongo_port,
+        host="mongodb",
+        port=27017,
         username="admin",
         password="password",
         authSource="admin"
@@ -18,6 +18,9 @@ def get_mongo_client():
     return client
 
 def save_to_mongo(data):
+    """
+    Sauvegarde les données dans MongoDB
+    """
     if not data:
         return
     
@@ -25,35 +28,59 @@ def save_to_mongo(data):
     db = client['events_db']
     collection = db['raw_events']
     
-    # On ajoute une date d'insertion pour le suivi du Datalake
+    # Ajout de la date d'extraction pour le suivi
     for item in data:
         item['extracted_at'] = datetime.utcnow()
     
     # Insertion des données
     result = collection.insert_many(data)
-    print(f"--- {len(result.inserted_ids)} documents insérés dans MongoDB ---")
+    print(f"--- {len(result.inserted_ids)} records inserted into MongoDB ---")
     client.close()
 
-def fetch_paris_events(limit=20, offset=0):
+def fetch_all_events():
+    """
+    Récupère tous les événements via l'API OpenData avec pagination
+    """
     base_url = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records"
-    params = {'limit': limit, 'offset': offset}
+    limit = 100
+    offset = 0
+    all_events = []
 
-    try:
-        print(f"Extraction de {limit} événements...")
-        response = requests.get(base_url, params=params, timeout=10)
-        response.raise_for_status()
-        
-        results = response.json().get('results', [])
-        print(f"Succès : {len(results)} événements récupérés.")
-        return results
-    except Exception as err:
-        print(f"Erreur d'extraction : {err}")
-        return []
+    while True:
+        params = {'limit': limit, 'offset': offset}
+
+        try:
+            print(f"Fetching records... Offset: {offset}")
+            response = requests.get(base_url, params=params, timeout=20)
+            response.raise_for_status()
+            
+            # Parsing de la réponse JSON
+            data = response.json()
+            results = data.get('results', [])
+            
+            # Arrêt de la boucle si aucune donnée n'est trouvée
+            if not results:
+                print("No more results found.")
+                break
+            
+            all_events.extend(results)
+            
+            # Incrémentation de l'offset pour la page suivante
+            offset += limit
+            
+            # Petite pause pour respecter les limites de l'API
+            time.sleep(0.2)
+            
+        except Exception as e:
+            print(f"Error during extraction: {e}")
+            break
+
+    print(f"Total events fetched: {len(all_events)}")
+    return all_events
 
 if __name__ == "__main__":
-    # 1. Extraction
-    raw_data = fetch_paris_events(limit=20)
+    # Exécution du processus ETL
+    events = fetch_all_events()
     
-    # 2. Stockage dans le Datalake
-    if raw_data:
-        save_to_mongo(raw_data)
+    if events:
+        save_to_mongo(events)
