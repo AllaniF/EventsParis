@@ -1,6 +1,6 @@
 import requests
 import time
-from pymongo import MongoClient
+from pymongo import MongoClient, UpdateOne
 from datetime import datetime
 
 def get_mongo_client():
@@ -28,13 +28,28 @@ def save_to_mongo(data):
     db = client['events_db']
     collection = db['raw_events']
     
+    # Création d'un index unique sur 'id' pour garantir la performance des upserts
+    collection.create_index("id", unique=True)
+
+    operations = []
     # Ajout de la date d'extraction pour le suivi
     for item in data:
         item['extracted_at'] = datetime.utcnow()
+        
+        # On utilise 'id' (API v2.1) ou 'recordid' (API v2) comme clé unique
+        event_id = item.get('id') or item.get('recordid')
+        
+        if event_id:
+            # Upsert: Si l'ID existe, on met à jour, sinon on insère
+            operations.append(
+                UpdateOne({'id': event_id}, {'$set': item}, upsert=True)
+            )
     
-    # Insertion des données
-    result = collection.insert_many(data)
-    print(f"--- {len(result.inserted_ids)} records inserted into MongoDB ---")
+    # Exécution en lot (Bulk Write)
+    if operations:
+        result = collection.bulk_write(operations)
+        print(f"--- Processus terminé : {len(operations)} traités. Insérés : {result.upserted_count}, Modifiés : {result.modified_count} ---")
+    
     client.close()
 
 def fetch_all_events():
