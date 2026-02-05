@@ -2,6 +2,8 @@ import psycopg2
 from pymongo import MongoClient
 from datetime import datetime
 import os
+from bs4 import BeautifulSoup
+import warnings
 
 # Configuration MongoDB
 MONGO_CONFIG = {
@@ -26,6 +28,17 @@ def get_mongo_client():
 
 def get_pg_connection():
     return psycopg2.connect(**PG_CONFIG)
+
+def strip_html(text):
+    """Nettoie le HTML des descriptions (EDA Finding 3.1)"""
+    if isinstance(text, str) and text:
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                return BeautifulSoup(text, "html.parser").get_text(separator=' ').strip()
+        except Exception:
+            return text
+    return text
 
 def create_tables():
     """Création des tables dans PostgreSQL (Schéma en étoile)"""
@@ -107,10 +120,20 @@ def transform_and_load(data):
     conn = get_pg_connection()
     cur = conn.cursor()
 
-    print(f"Début de la transformation pour {len(data)} événements...")
+    # Dédoublonnage préalable (EDA Finding 3.4)
+    # On utilise un dictionnaire pour garder uniquement le dernier événement par ID
+    unique_events = {}
+    for event in data:
+        fields = event.get('fields') or event
+        event_id = fields.get('id') or event.get('recordid') or event.get('id')
+        if event_id:
+            unique_events[event_id] = event
+    
+    deduplicated_data = list(unique_events.values())
+    print(f"Début de la transformation. Événements bruts : {len(data)} -> Après dédoublonnage : {len(deduplicated_data)}")
 
     try:
-        for event in data:
+        for event in deduplicated_data:
             # Extraction des champs utiles
             fields = event.get('fields')
             if not fields:
@@ -118,9 +141,7 @@ def transform_and_load(data):
 
             # ID de l'événement (obligatoire)
             event_id = fields.get('id') or event.get('recordid') or event.get('id')
-            if not event_id:
-                continue
-
+            
             # 1. Gestion de la Dimension Lieu
             nom_lieu = fields.get('nom_de_lieu') or fields.get('lieu_nom') or fields.get('address_name')
             adresse = fields.get('adresse_de_lieu') or fields.get('lieu_adresse') or fields.get('address_street')
@@ -208,7 +229,11 @@ def transform_and_load(data):
 
             # 4. Insertion dans la Table de Fait
             titre = fields.get('title') or fields.get('titre')
-            description = fields.get('description') or fields.get('lead_text')
+            
+            # Nettoyage HTML de la description (EDA Finding 3.1)
+            description_raw = fields.get('description') or fields.get('lead_text')
+            description = strip_html(description_raw)
+            
             url = fields.get('url') or fields.get('link') or fields.get('contact_url')
             image_url = fields.get('cover_url') or fields.get('image_cover')
             prix_detail = fields.get('price_detail') or fields.get('prix')
