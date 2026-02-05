@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -18,6 +18,27 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - eventsparis_network
+
+  # Airflow Init
+  airflow_init:
+    build: .
+    container_name: airflow_init
+    environment:
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW_UID: 50000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      bash -c "
+        airflow db migrate &&
+        (airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin || echo 'User already created')
+      "
     networks:
       - eventsparis_network
 
@@ -31,6 +52,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
       AIRFLOW_UID: 50000
+      PYTHONPATH: /opt/airflow/src
     ports:
       - "8080:8080"
     volumes:
@@ -41,7 +63,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: bash -c "airflow db migrate && airflow webserver"
+      airflow_init:
+        condition: service_completed_successfully
+    command: airflow webserver
     networks:
       - eventsparis_network
 
@@ -57,6 +81,7 @@ services:
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
       AIRFLOW_UID: 50000
+      PYTHONPATH: /opt/airflow/src
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
@@ -65,7 +90,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: bash -c "airflow db migrate && airflow scheduler"
+      airflow_init:
+        condition: service_completed_successfully
+    command: airflow scheduler
     networks:
       - eventsparis_network
 
@@ -133,7 +160,7 @@ services:
       - prometheus
     networks:
       - eventsparis_network
-  
+
   mongodb:
     image: mongo:latest
     container_name: mongodb_eventsparis

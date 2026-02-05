@@ -4,7 +4,7 @@ from datetime import datetime
 
 def get_mongo_client():
    
-    MongoClient(
+    client = MongoClient(
         host="mongodb",
         port=27017,
         username="admin",
@@ -26,14 +26,14 @@ def save_to_mongo(data):
     for item in data:
         item['extracted_at'] = datetime.utcnow()
     
-    # Insertion des données (insert_many est plus performant)
+    # Insertion des données
     result = collection.insert_many(data)
     print(f"--- {len(result.inserted_ids)} documents insérés dans MongoDB ---")
     client.close()
 
-def fetch_paris_events( offset=0):
+def fetch_paris_events(limit=20, offset=0):
     base_url = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records"
-    params = { 'offset': offset}
+    params = {'limit': limit, 'offset': offset}
 
     try:
         print(f"Extraction de {limit} événements...")
@@ -49,7 +49,7 @@ def fetch_paris_events( offset=0):
 
 if __name__ == "__main__":
     # 1. Extraction
-    raw_data = fetch_paris_events()
+    raw_data = fetch_paris_events(limit=20)
     
     # 2. Stockage dans le Datalake
     if raw_data:
