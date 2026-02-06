@@ -56,17 +56,35 @@ def transform_and_load(data):
     conn = get_pg_connection()
     cur = conn.cursor()
 
-    # Dédoublonnage préalable (EDA Finding 3.4)
-    # On utilise un dictionnaire pour garder uniquement le dernier événement par ID
+    # Dédoublonnage robuste (Aligné avec EDA)
     unique_events = {}
+    duplicates_count = 0
+    
+    print(f"--- DÉBUT PROCESSUS ---")
+    print(f"Documents bruts récupérés de MongoDB : {len(data)}")
+
     for event in data:
-        fields = event.get('fields') or event
-        event_id = fields.get('id') or event.get('recordid') or event.get('id')
+        # Récupération sécurisée des champs (structure plate ou imbriquée)
+        fields = event.get('fields', {})
+        if fields is None: fields = {}
+        
+        # Stratégie de résolution de l'ID (Priorité: id > fields.id > recordid)
+        event_id = event.get('id')
+        if not event_id:
+             event_id = fields.get('id')
+        if not event_id:
+             event_id = event.get('recordid')
+        
         if event_id:
+            event_id = str(event_id)
+            if event_id in unique_events:
+                duplicates_count += 1
+            # On stocke l'événement complet. Si doublon, on écrase avec le dernier trouvé.
             unique_events[event_id] = event
     
     deduplicated_data = list(unique_events.values())
-    print(f"Début de la transformation. Événements bruts : {len(data)} -> Après dédoublonnage : {len(deduplicated_data)}")
+    print(f"Doublons identifiés et filtrés : {duplicates_count}")
+    print(f"Événements uniques à charger dans Postgres : {len(deduplicated_data)}")
 
     try:
         for event in deduplicated_data:
@@ -75,8 +93,9 @@ def transform_and_load(data):
             if not fields:
                 fields = event
 
-            # ID de l'événement (obligatoire)
-            event_id = fields.get('id') or event.get('recordid') or event.get('id')
+            # ID de l'événement (On le recalcule proprement)
+            event_id = event.get('id') or fields.get('id') or event.get('recordid')
+            event_id = str(event_id)
             
             # 1. Gestion de la Dimension Lieu
             nom_lieu = fields.get('nom_de_lieu') or fields.get('lieu_nom') or fields.get('address_name')
@@ -113,7 +132,7 @@ def transform_and_load(data):
                     lieu_id = result[0]
 
             # 2. Gestion de la Dimension Catégorie
-            categorie_raw = fields.get('category') or fields.get('categorie')
+            categorie_raw = fields.get('category') or fields.get('categorie') or fields.get('qfap_tags')
             categorie_id = None
 
             if categorie_raw:

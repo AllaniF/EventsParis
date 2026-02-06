@@ -1,0 +1,578 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 14,
+      "panels": [],
+      "title": "Cluster Overview",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Total uptime of the MongoDB instance in seconds.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "id": 2,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "mongodb_ss_uptime",
+          "refId": "A"
+        }
+      ],
+      "title": "Instance Uptime",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Number of currently active client connections.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 5,
+        "x": 4,
+        "y": 1
+      },
+      "id": 4,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "mongodb_ss_connections{conn_type=\"current\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Client Connections",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Physical memory currently executing.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 5,
+        "x": 9,
+        "y": 1
+      },
+      "id": 6,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "mongodb_ss_tcmalloc_generic_physical_memory_used",
+          "refId": "A"
+        }
+      ],
+      "title": "RAM Used",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Total number of databases on this server.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 5,
+        "x": 14,
+        "y": 1
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "count(mongodb_dbstats_collections)",
+          "refId": "A"
+        }
+      ],
+      "title": "Databases",
+      "type": "stat"
+    },
+    {
+       "datasource": "Prometheus",
+       "description": "Network traffic in.",
+       "fieldConfig": {
+         "defaults": {
+           "color": { "mode": "thresholds" },
+           "unit": "bps"
+         }
+       },
+       "gridPos": { "h": 6, "w": 5, "x": 19, "y": 1 },
+       "id": 105,
+       "options": {
+         "colorMode": "value",
+          "graphMode": "area",
+         "reduceOptions": { "calcs": ["lastNotNull"], "values": false }
+       },
+       "targets": [{ "expr": "rate(mongodb_ss_network_bytes_in[5m]) * 8", "refId": "A" }],
+       "title": "Network In (Rate)",
+       "type": "stat"
+     },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "id": 18,
+      "panels": [],
+      "title": "Database: events_db",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Number of distinct collections in 'events_db'.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 8
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "mongodb_dbstats_collections{database=\"events_db\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Collections Count",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Total number of documents/objects across all collections in 'events_db'.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 8,
+        "y": 8
+      },
+      "id": 10,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "mongodb_dbstats_objects{database=\"events_db\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Total Documents",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Total storage size used by 'events_db'.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 16,
+        "y": 8
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "8.3.3",
+      "targets": [
+        {
+          "expr": "mongodb_dbstats_storageSize{database=\"events_db\"}",
+          "refId": "A"
+        }
+      ],
+      "title": "Storage Size",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "id": 20,
+      "panels": [],
+      "title": "Operations & Traffic",
+      "type": "row"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Operations per second by type (Insert, Update, Delete, Query).",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisLabel": "Ops/sec",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 10,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 15
+      },
+      "id": 22,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"insert\"}[5m])",
+          "legendFormat": "Insert",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"query\"}[5m])",
+          "legendFormat": "Query",
+          "refId": "B"
+        },
+         {
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"update\"}[5m])",
+          "legendFormat": "Update",
+          "refId": "C"
+        },
+         {
+          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"delete\"}[5m])",
+          "legendFormat": "Delete",
+          "refId": "D"
+        }
+      ],
+      "title": "Operations Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "description": "Network traffic (In/Out).",
+       "fieldConfig": {
+         "defaults": {
+           "color": { "mode": "palette-classic" },
+           "custom": { "axisLabel": "Bits/sec", "unit": "bps" }
+         }
+       },
+       "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
+       "id": 106,
+       "options": {
+         "legend": { "displayMode": "table", "placement": "bottom" }
+       },
+       "targets": [
+         { "expr": "rate(mongodb_ss_network_bytes_in[5m]) * 8", "legendFormat": "Inbound", "refId": "A" },
+         { "expr": "rate(mongodb_ss_network_bytes_out[5m]) * 8", "legendFormat": "Outbound", "refId": "B" }
+       ],
+       "title": "Network Traffic (I/O)",
+       "type": "timeseries"
+     }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 30,
+  "style": "dark",
+  "tags": [
+    "mongodb",
+    "prometheus"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "MongoDB: Events Cluster Overview",
+  "uid": "mongo-overview",
+  "version": 2
+}

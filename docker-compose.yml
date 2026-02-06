@@ -48,7 +48,6 @@ services:
     build: .
     container_name: airflow_webserver
     environment:
-      AIRFLOW__CORE__DAGS_FILES: /opt/airflow/dags
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
@@ -56,6 +55,8 @@ services:
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'False'
       AIRFLOW_UID: 50000
       PYTHONPATH: /opt/airflow/src
+      AIRFLOW__WEBSERVER__SECRET_KEY: 'this_is_a_very_secure_secret_key'
+      AIRFLOW__WEBSERVER__WORKER_TIMEOUT: '120'
     ports:
       - "8080:8080"
     volumes:
@@ -72,28 +73,7 @@ services:
     networks:
       - eventsparis_network
 
-  # Dashboard Service
-  dashboard:
-    build: .
-    container_name: dashboard_eventsparis
-    environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./src:/opt/airflow/src
-    depends_on:
-      postgres:
-        condition: service_healthy
-    # Use bash -c to ensure the command is interpreted correctly by the entrypoint
-    command: bash -c "streamlit run /opt/airflow/src/dashboard.py --server.port 8501 --server.address 0.0.0.0"
-    restart: on-failure
-    networks:
-      - eventsparis_network
+
 
   # Apache Airflow Scheduler
   airflow_scheduler:
@@ -209,9 +189,30 @@ services:
       - ./grafana/provisioning/datasources/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
       - ./grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
       - ./grafana/provisioning/dashboards/mongo_dashboard.json:/var/lib/grafana/dashboards/mongo_dashboard.json
-      - ./grafana/provisioning/dashboards/mongo_speedtest.json:/var/lib/grafana/dashboards/mongo_speedtest.json
+      - ./grafana/provisioning/dashboards/postgres_dashboard.json:/var/lib/grafana/dashboards/postgres_dashboard.json
     depends_on:
       - prometheus
+    networks:
+      - eventsparis_network
+
+  # Python Dashboard (Streamlit)
+  dashboard:
+    build: .
+    container_name: dashboard_eventsparis
+    ports:
+      - "8501:8501"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - ./src:/opt/airflow/src
+    entrypoint: []
+    command: bash -c "export PATH=$PATH:/home/airflow/.local/bin && streamlit run /opt/airflow/src/dashboard.py --server.address 0.0.0.0"
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - eventsparis_network
 

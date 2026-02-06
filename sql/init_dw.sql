@@ -38,3 +38,13 @@ CREATE TABLE IF NOT EXISTS fait_evenement (
     categorie_id INT REFERENCES dim_categorie(id),
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS speedtest_results (
+    id SERIAL PRIMARY KEY,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    download FLOAT,
+    upload FLOAT,
+    ping FLOAT,
+    server_name VARCHAR(255),
+    server_id INT
+);
