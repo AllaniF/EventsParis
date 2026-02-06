@@ -48,6 +48,7 @@ services:
     build: .
     container_name: airflow_webserver
     environment:
+      AIRFLOW__CORE__DAGS_FILES: /opt/airflow/dags
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
