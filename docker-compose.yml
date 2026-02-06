@@ -48,10 +48,12 @@ services:
     build: .
     container_name: airflow_webserver
     environment:
+      AIRFLOW__CORE__DAGS_FILES: /opt/airflow/dags
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'False'
       AIRFLOW_UID: 50000
       PYTHONPATH: /opt/airflow/src
     ports:
@@ -81,6 +83,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'False'
       AIRFLOW_UID: 50000
       PYTHONPATH: /opt/airflow/src
     volumes:
@@ -191,23 +194,27 @@ services:
     networks:
       - eventsparis_network
 
-  # Initial Data Loading Service (ETL)
-  etl_init:
+  # Trigger DAGs on startup
+  airflow_trigger:
     build: .
-    container_name: etl_init
+    container_name: airflow_trigger
     environment:
-      # Use the same generic airflow user ID defined elsewhere or default to 50000
-      AIRFLOW_UID: ${AIRFLOW_UID:-50000}
-      PYTHONPATH: /opt/airflow/src
-    volumes:
-      - ./src:/opt/airflow/src:z
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW_UID: 50000
     depends_on:
-      - mongodb
-    # Restart only if it fails (e.g., if mongo is not ready yet)
+      airflow_scheduler:
+        condition: service_started
+      airflow_init:
+        condition: service_completed_successfully
     restart: on-failure
-    # Install dependencies and run the extraction script
     command: >
-      bash -c "pip install pymongo requests && python /opt/airflow/src/extract.py"
+      bash -c "
+      echo 'Waiting for DAGs to be parsed...' &&
+      sleep 30 &&
+      airflow dags trigger extract_paris_events || echo 'Failed to trigger events DAG' &&
+      airflow dags trigger speedtest_monitor || echo 'Failed to trigger speedtest DAG'
+      "
     networks:
       - eventsparis_network
 

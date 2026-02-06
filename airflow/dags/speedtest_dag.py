@@ -30,6 +30,7 @@ with DAG(
     schedule_interval='*/30 * * * *', # Every 30 minutes
     start_date=datetime(2026, 2, 5),
     catchup=False,
+    is_paused_upon_creation=False,
     tags=['monitoring'],
 ) as dag:
 
