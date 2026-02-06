@@ -48,10 +48,12 @@ services:
     build: .
     container_name: airflow_webserver
     environment:
+      AIRFLOW__CORE__DAGS_FILES: /opt/airflow/dags
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'False'
       AIRFLOW_UID: 50000
       PYTHONPATH: /opt/airflow/src
     ports:
@@ -102,6 +104,7 @@ services:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
       AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'False'
       AIRFLOW_UID: 50000
       PYTHONPATH: /opt/airflow/src
     volumes:
@@ -165,6 +168,32 @@ services:
     networks:
       - eventsparis_network
 
+  mongodb_exporter:
+    image: percona/mongodb_exporter:0.40.0
+    container_name: mongodb_exporter_eventsparis
+    environment:
+      MONGODB_URI: mongodb://admin:password@mongodb:27017/?authSource=admin
+    command:
+      - "--collect-all"
+    ports:
+      - "9216:9216"
+    depends_on:
+      - mongodb
+    networks:
+      - eventsparis_network
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_eventsparis
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://airflow:airflow@postgres:5432/airflow?sslmode=disable"
+    depends_on:
+      - postgres
+    networks:
+      - eventsparis_network
+
   # Grafana
   grafana:
     image: grafana/grafana:latest
@@ -177,9 +206,36 @@ services:
       GF_INSTALL_PLUGINS: 'grafana-clock-panel,grafana-simple-json-datasource,grafana-worldmap-panel'
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/provisioning/datasources/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ./grafana/provisioning/dashboards/mongo_dashboard.json:/var/lib/grafana/dashboards/mongo_dashboard.json
+      - ./grafana/provisioning/dashboards/mongo_speedtest.json:/var/lib/grafana/dashboards/mongo_speedtest.json
     depends_on:
       - prometheus
+    networks:
+      - eventsparis_network
+
+  # Trigger DAGs on startup
+  airflow_trigger:
+    build: .
+    container_name: airflow_trigger
+    environment:
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW_UID: 50000
+    depends_on:
+      airflow_scheduler:
+        condition: service_started
+      airflow_init:
+        condition: service_completed_successfully
+    restart: on-failure
+    command: >
+      bash -c "
+      echo 'Waiting for DAGs to be parsed...' &&
+      sleep 30 &&
+      airflow dags trigger extract_paris_events || echo 'Failed to trigger events DAG' &&
+      airflow dags trigger speedtest_monitor || echo 'Failed to trigger speedtest DAG'
+      "
     networks:
       - eventsparis_network
 
@@ -215,6 +271,7 @@ services:
       - mongo_data:/data/db
     networks:
       - eventsparis_network
+
 
 volumes:
   postgres_data:
