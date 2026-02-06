@@ -1,6 +1,6 @@
 import requests
 import time
-from pymongo import MongoClient, UpdateOne
+from pymongo import MongoClient
 from datetime import datetime
 
 def get_mongo_client():
@@ -28,38 +28,31 @@ def save_to_mongo(data):
     db = client['events_db']
     collection = db['raw_events']
     
-    # Création d'un index unique sur 'id' pour garantir la performance des upserts
-    collection.create_index("id", unique=True)
+    # Suppression de l'index unique s'il existe pour permettre l'insertion de tous les événements (doublons inclus)
+    try:
+        collection.drop_index("id_1")
+    except Exception:
+        pass
 
-    operations = []
     # Ajout de la date d'extraction pour le suivi
     for item in data:
         item['extracted_at'] = datetime.utcnow()
-        
-        # On utilise 'id' (API v2.1) ou 'recordid' (API v2) comme clé unique
-        event_id = item.get('id') or item.get('recordid')
-        
-        if event_id:
-            # Upsert: Si l'ID existe, on met à jour, sinon on insère
-            operations.append(
-                UpdateOne({'id': event_id}, {'$set': item}, upsert=True)
-            )
     
-    # Exécution en lot (Bulk Write)
-    if operations:
-        result = collection.bulk_write(operations)
-        print(f"--- Processus terminé : {len(operations)} traités. Insérés : {result.upserted_count}, Modifiés : {result.modified_count} ---")
+    # Insertion directe (Append-only) sans vérification de doublons
+    if data:
+        collection.insert_many(data)
+        print(f"--- Processus terminé : {len(data)} ajoutés. ---")
     
     client.close()
 
 def fetch_all_events():
     """
-    Récupère tous les événements via l'API OpenData avec pagination
+    Récupère tous les événements via l'API OpenData avec pagination et les sauvegarde.
     """
     base_url = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records"
     limit = 100
     offset = 0
-    all_events = []
+    total_events = 0
 
     while True:
         params = {'limit': limit, 'offset': offset}
@@ -78,7 +71,9 @@ def fetch_all_events():
                 print("No more results found.")
                 break
             
-            all_events.extend(results)
+            # Sauvegarde immédiate du lot
+            save_to_mongo(results)
+            total_events += len(results)
             
             # Incrémentation de l'offset pour la page suivante
             offset += limit
@@ -90,12 +85,8 @@ def fetch_all_events():
             print(f"Error during extraction: {e}")
             break
 
-    print(f"Total events fetched: {len(all_events)}")
-    return all_events
+    print(f"Total events fetched and saved: {total_events}")
 
 if __name__ == "__main__":
     # Exécution du processus ETL
-    events = fetch_all_events()
-    
-    if events:
-        save_to_mongo(events)
+    fetch_all_events()
