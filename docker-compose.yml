@@ -70,7 +70,28 @@ services:
     networks:
       - eventsparis_network
 
-
+  # Dashboard Service
+  dashboard:
+    build: .
+    container_name: dashboard_eventsparis
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./src:/opt/airflow/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Use bash -c to ensure the command is interpreted correctly by the entrypoint
+    command: bash -c "streamlit run /opt/airflow/src/dashboard.py --server.port 8501 --server.address 0.0.0.0"
+    restart: on-failure
+    networks:
+      - eventsparis_network
 
   # Apache Airflow Scheduler
   airflow_scheduler:
