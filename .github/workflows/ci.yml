@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [ "main", "develop" ]
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main", "develop", "add_ci" ]
 
 jobs:
   build:
@@ -37,7 +37,7 @@ jobs:
         sudo chmod -R 777 ./airflow
 
     - name: Build and Start Docker containers
-      run: docker-compose up -d --build
+      run: docker compose up -d --build
 
     - name: Wait for services to initialize
       run: sleep 60
