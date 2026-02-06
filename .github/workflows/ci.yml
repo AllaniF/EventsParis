@@ -30,3 +30,70 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Prepare directories
+      run: |
+        mkdir -p ./airflow/dags ./airflow/logs ./airflow/plugins
+        sudo chmod -R 777 ./airflow
+
+    - name: Build and Start Docker containers
+      run: docker-compose up -d --build
+
+    - name: Wait for services to initialize
+      run: sleep 60
+
+    - name: Check Docker containers status
+      run: docker-compose ps -a
+
+    - name: Verify Critical Services are Running
+      run: |
+        RUNNING_CONTAINERS=$(docker ps --format '{{.Names}}')
+        echo "Running containers:"
+        echo "$RUNNING_CONTAINERS"
+        
+        REQUIRED_CONTAINERS="postgres_eventsparis airflow_webserver airflow_scheduler kafka_eventsparis mongodb_eventsparis zookeeper_eventsparis prometheus_eventsparis grafana_eventsparis"
+        MISSING_CONTAINER=false
+        
+        for CONTAINER in $REQUIRED_CONTAINERS; do
+          if ! echo "$RUNNING_CONTAINERS" | grep -q "$CONTAINER"; then
+            echo "Error: Container $CONTAINER is not running."
+            MISSING_CONTAINER=true
+          fi
+        done
+        
+        if [ "$MISSING_CONTAINER" = true ]; then
+          echo "Dumping logs for debugging..."
+          docker-compose logs
+          exit 1
+        fi
+
+    - name: Verify Airflow Webserver
+      run: |
+        echo "Checking Airflow Webserver health..."
+        if curl --retry 5 --retry-delay 10 --retry-connrefused -s -f http://localhost:8080/health; then
+            echo "Airflow Webserver is up."
+        else
+            echo "Airflow Webserver is not responding."
+            docker logs airflow_webserver
+            exit 1
+        fi
+
+    - name: Check ETL Init Logs
+      run: |
+        echo "Checking etl_init logs..."
+        docker logs etl_init
+
+    - name: Test MongoDB Connection and Data
+      env:
+        MONGO_HOST: localhost
+      run: |
+        echo "Running MongoDB check..."
+        # Run the check script and ensure it connects successfully
+        OUTPUT=$(python src/check_mongo.py)
+        echo "$OUTPUT"
+        if echo "$OUTPUT" | grep -q "Connexion à MongoDB réussie"; then
+            echo "MongoDB connection test passed."
+        else
+            echo "MongoDB connection test failed."
+            exit 1
+        fi
