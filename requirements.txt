@@ -1,3 +1,4 @@
 pymongo
 requests
 psycopg2-binary
+speedtest-cli

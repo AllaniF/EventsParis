@@ -158,6 +158,17 @@ services:
     networks:
       - eventsparis_network
 
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_eventsparis
+    ports:
+      - "9187:9187"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://airflow:airflow@postgres:5432/airflow?sslmode=disable"
+    depends_on:
+      - postgres
+    networks:
+      - eventsparis_network
 
   # Grafana
   grafana:
@@ -174,6 +185,7 @@ services:
       - ./grafana/provisioning/datasources/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
       - ./grafana/provisioning/dashboards/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
       - ./grafana/provisioning/dashboards/mongo_dashboard.json:/var/lib/grafana/dashboards/mongo_dashboard.json
+      - ./grafana/provisioning/dashboards/mongo_speedtest.json:/var/lib/grafana/dashboards/mongo_speedtest.json
     depends_on:
       - prometheus
     networks:

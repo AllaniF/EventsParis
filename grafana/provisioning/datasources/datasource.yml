@@ -6,3 +6,14 @@ datasources:
     access: proxy
     url: http://prometheus:9090
     isDefault: true
+
+  - name: PostgreSQL
+    type: postgres
+    url: postgres:5432
+    database: airflow
+    user: airflow
+    secureJsonData:
+      password: airflow
+    jsonData:
+      sslmode: "disable"
+      database: airflow
