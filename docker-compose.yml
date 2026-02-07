@@ -67,7 +67,7 @@ services:
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'False'
       AIRFLOW_UID: ${AIRFLOW_UID}
       PYTHONPATH: /opt/airflow/src
-      AIRFLOW__WEBSERVER__SECRET_KEY: 'this_is_a_very_secure_secret_key'
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
       AIRFLOW__WEBSERVER__WORKER_TIMEOUT: '120'
       # Env vars for Python scripts
       MONGO_HOST: ${MONGO_HOST}

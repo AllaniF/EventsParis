@@ -4,6 +4,15 @@ from datetime import datetime
 import os
 from bs4 import BeautifulSoup
 import warnings
+import logging
+from typing import Generator, Tuple, Any, Optional
+
+# Logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Configuration MongoDB et Postgres via Variables d'Environnement
 MONGO_CONFIG = {
@@ -22,13 +31,13 @@ PG_CONFIG = {
     "dbname": os.getenv("POSTGRES_DB", "airflow")
 }
 
-def get_mongo_client():
+def get_mongo_client() -> MongoClient:
     return MongoClient(**MONGO_CONFIG)
 
-def get_pg_connection():
+def get_pg_connection() -> psycopg2.extensions.connection:
     return psycopg2.connect(**PG_CONFIG)
 
-def strip_html(text):
+def strip_html(text: Optional[str]) -> Optional[str]:
     """Nettoie le HTML des descriptions (EDA Finding 3.1)"""
     if isinstance(text, str) and text:
         try:
@@ -39,7 +48,7 @@ def strip_html(text):
             return text
     return text
 
-def extract_from_mongo_generator():
+def extract_from_mongo_generator() -> Tuple[Any, MongoClient]:
     """Récupère les données brutes depuis MongoDB via un curseur (Lazy loading)"""
     client = get_mongo_client()
     db = client['events_db']
@@ -49,7 +58,7 @@ def extract_from_mongo_generator():
     cursor = collection.find({})
     return cursor, client
 
-def transform_and_load(cursor, client):
+def transform_and_load(cursor, client) -> None:
     """Transforme les données et les charge dans PostgreSQL par lots"""
     cur = None
     conn = None
@@ -57,7 +66,7 @@ def transform_and_load(cursor, client):
         conn = get_pg_connection()
         cur = conn.cursor()
         
-        print(f"--- DÉBUT PROCESSUS ---")
+        logger.info(f"--- DÉBUT PROCESSUS ---")
         
         count = 0
         
@@ -65,7 +74,7 @@ def transform_and_load(cursor, client):
         for event in cursor:
             count += 1
             if count % 1000 == 0:
-                print(f"Traitement de l'événement #{count}...")
+                logger.info(f"Traitement de l'événement #{count}...")
             
             # Récupération sécurisée des champs
             # L'API v2.1 retourne une structure plate, v1 utilise 'fields'.
@@ -201,10 +210,10 @@ def transform_and_load(cursor, client):
             """, (event_id, titre, description, date_debut, date_fin, url, image_url, prix_detail, lieu_id, categorie_id, type_prix))
 
         conn.commit()
-        print(f"Transformation et chargement terminés. {count} événements traités.")
+        logger.info(f"Transformation et chargement terminés. {count} événements traités.")
 
     except Exception as e:
-        print(f"Erreur lors du chargement : {e}")
+        logger.error(f"Erreur lors du chargement", exc_info=True)
         if conn:
             conn.rollback()
     finally:
@@ -217,7 +226,7 @@ def main():
         cursor, client = extract_from_mongo_generator()
         transform_and_load(cursor, client)
     except Exception as e:
-        print(f"Critical error in ETL process: {e}")
+        logger.critical(f"Critical error in ETL process", exc_info=True)
 
 if __name__ == "__main__":
     main()

@@ -4,9 +4,6 @@ from datetime import datetime, timedelta
 import sys
 import os
 
-# Ajout du dossier src au path pour les imports
-sys.path.append('/opt/airflow/src')
-
 # Import dynamique sécurisé
 try:
     from extract import fetch_all_events

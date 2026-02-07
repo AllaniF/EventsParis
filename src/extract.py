@@ -1,8 +1,17 @@
 import requests
 import time
 import os
+import logging
+from typing import List, Dict, Any, Optional
 from pymongo import MongoClient, UpdateOne
 from datetime import datetime
+
+# Logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Configuration variables
 MONGO_HOST = os.getenv("MONGO_HOST", "mongodb")
@@ -11,20 +20,24 @@ MONGO_USER = os.getenv("MONGO_USER", "admin")
 MONGO_PASSWORD = os.getenv("MONGO_PASSWORD", "password")
 MONGO_DB = os.getenv("MONGO_DB", "events_db")
 
-def get_mongo_client():
+# Constants
+API_BASE_URL = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records"
+API_TIMEOUT = 20
+PAGE_LIMIT = 100
+
+def get_mongo_client() -> MongoClient:
     """
     Configuration de la connexion MongoDB
     """
-    client = MongoClient(
+    return MongoClient(
         host=MONGO_HOST,
         port=MONGO_PORT,
         username=MONGO_USER,
         password=MONGO_PASSWORD,
         authSource="admin"
     )
-    return client
 
-def save_to_mongo(data, client):
+def save_to_mongo(data: List[Dict[str, Any]], client: MongoClient) -> None:
     """
     Sauvegarde les données dans MongoDB avec Upsert pour éviter les doublons
     """
@@ -57,16 +70,14 @@ def save_to_mongo(data, client):
     if operations:
         try:
             result = collection.bulk_write(operations)
-            print(f"--- Batch processed: {result.upserted_count} inserts, {result.modified_count} updates ---")
+            logger.info(f"Batch processed: {result.upserted_count} inserts, {result.modified_count} updates")
         except Exception as e:
-            print(f"Error executing bulk write: {e}")
+            logger.error("Error executing bulk write", exc_info=True)
 
-def fetch_all_events():
+def fetch_all_events() -> None:
     """
     Récupère tous les événements via l'API OpenData avec pagination et les sauvegarde.
     """
-    base_url = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records"
-    limit = 100
     offset = 0
     total_events = 0
     
@@ -74,11 +85,11 @@ def fetch_all_events():
 
     try:
         while True:
-            params = {'limit': limit, 'offset': offset}
+            params = {'limit': PAGE_LIMIT, 'offset': offset}
 
             try:
-                print(f"Fetching records... Offset: {offset}")
-                response = requests.get(base_url, params=params, timeout=20)
+                logger.info(f"Fetching records... Offset: {offset}")
+                response = requests.get(API_BASE_URL, params=params, timeout=API_TIMEOUT)
                 response.raise_for_status()
                 
                 # Parsing de la réponse JSON
@@ -87,7 +98,7 @@ def fetch_all_events():
                 
                 # Arrêt de la boucle si aucune donnée n'est trouvée
                 if not results:
-                    print("No more results found.")
+                    logger.info("No more results found.")
                     break
                 
                 # Sauvegarde immédiate du lot
@@ -95,18 +106,18 @@ def fetch_all_events():
                 total_events += len(results)
                 
                 # Incrémentation de l'offset pour la page suivante
-                offset += limit
+                offset += PAGE_LIMIT
                 
                 # Petite pause pour respecter les limites de l'API
                 time.sleep(0.2)
                 
             except Exception as e:
-                print(f"Error during extraction: {e}")
+                logger.error("Error during extraction", exc_info=True)
                 break
     finally:
         client.close()
 
-    print(f"Total events fetched and processed: {total_events}")
+    logger.info(f"Total events fetched and processed: {total_events}")
 
 if __name__ == "__main__":
     # Exécution du processus ETL

@@ -1,8 +1,8 @@
-pymongo
-requests
-psycopg2-binary
-streamlit
-pandas
-plotly
-speedtest-cli
-beautifulsoup4
+pymongo==4.6.1
+requests==2.31.0
+psycopg2-binary==2.9.9
+streamlit==1.30.0
+pandas==2.0.3
+plotly==5.18.0
+speedtest-cli==2.1.3
+beautifulsoup4==4.12.3
