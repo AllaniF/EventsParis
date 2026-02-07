@@ -9,6 +9,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Define shared environment variables for Docker and Tests
+      AIRFLOW_UID: 50000
+      MONGO_HOST: mongo
+      MONGO_PORT: 27017
+      MONGO_USER: admin
+      MONGO_PASSWORD: password
+      MONGO_DB: events_db
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+      AIRFLOW_SECRET_KEY: ci_secret_key_12345
+      GRAFANA_ADMIN_USER: admin
+      GRAFANA_ADMIN_PASSWORD: admin
 
     steps:
     - uses: actions/checkout@v3
@@ -91,6 +107,7 @@ jobs:
     - name: Test MongoDB Connection and Data
       env:
         MONGO_HOST: localhost
+        # Port is mapped to host 27017, User/Pass inherited from global env
       run: |
         echo "Running MongoDB check..."
         # Run the check script and ensure it connects successfully

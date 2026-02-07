@@ -133,7 +133,8 @@ EventsParis/
 │   └── init_dw.sql         # Data Warehouse initialization script
 ├── src/                    # Source code for ETL scripts
 │   ├── extract.py          # Script to extract data from API to MongoDB
-│   └── transform_load.py   # Script to transform and load data to PostgreSQL
+│   ├── transform_load.py   # Script to transform and load data to PostgreSQL
+│   └── eda.ipynb           # Jupyter Notebook for Exploratory Data Analysis
 ├── tests/
 │   └── verify_mongo_connection.py # Utility to check MongoDB connection
 ├── prometheus/             # Prometheus configuration
@@ -143,6 +144,12 @@ EventsParis/
 ├── requirements.txt        # Python dependencies
 └── README.md               # Project documentation
 ```
+
+## Exploratory Data Analysis (EDA)
+The project includes a Jupyter Notebook (`src/eda.ipynb`) containing a preliminary analysis of the Paris Events dataset. This notebook documents:
+- **Data Profiling**: Understanding the JSON structure and key fields.
+- **Data Quality Assessment**: Identification of missing values and formatting issues (e.g., HTML tags in descriptions).
+- **Visualization**: Initial exploration of event categories and temporal patterns to inform the Data Warehouse schema design.
 
 ## Usage
 
