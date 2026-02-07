@@ -78,8 +78,9 @@ EventsParis/
 │   └── init_dw.sql         # Data Warehouse initialization script
 ├── src/                    # Source code for ETL scripts
 │   ├── extract.py          # Script to extract data from API to MongoDB
-│   ├── transform_load.py   # Script to transform and load data to PostgreSQL
-│   └── check_mongo.py      # Utility to check MongoDB connection
+│   └── transform_load.py   # Script to transform and load data to PostgreSQL
+├── tests/
+│   └── verify_mongo_connection.py # Utility to check MongoDB connection
 ├── prometheus/             # Prometheus configuration
 ├── grafana/                # Grafana provisioning
 ├── docker-compose.yml      # Docker services configuration

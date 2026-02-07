@@ -94,7 +94,7 @@ jobs:
       run: |
         echo "Running MongoDB check..."
         # Run the check script and ensure it connects successfully
-        OUTPUT=$(python src/check_mongo.py)
+        OUTPUT=$(python tests/verify_mongo_connection.py 2>&1)
         echo "$OUTPUT"
         if echo "$OUTPUT" | grep -q "Connexion à MongoDB réussie"; then
             echo "MongoDB connection test passed."
