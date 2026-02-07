@@ -4,16 +4,18 @@ import os
 def get_mongo_client():
     """Établit la connexion à MongoDB."""
     try:
-
         host = os.getenv("MONGO_HOST", "mongodb")
+        port = int(os.getenv("MONGO_PORT", 27017))
+        username = os.getenv("MONGO_USER", "admin")
+        password = os.getenv("MONGO_PASSWORD", "password")
 
         client = MongoClient(
             host=host,
-            port=27017,
-            username="admin",
-            password="password",
+            port=port,
+            username=username,
+            password=password,
             authSource="admin",
-            serverSelectionTimeoutMS=5000  # Timeout after 5 seconds if connection fails
+            serverSelectionTimeoutMS=5000 
         )
         # Test the connection
         client.admin.command('ping')
@@ -49,6 +51,5 @@ def list_documents(client):
         print("\n--- Connexion à MongoDB fermée ---")
 
 if __name__ == "__main__":
-    mongo_client = get_mongo_client()
-    if mongo_client:
-        list_documents(mongo_client)
+    client = get_mongo_client()
+    list_documents(client)

@@ -5,16 +5,15 @@ import os
 from bs4 import BeautifulSoup
 import warnings
 
-# Configuration MongoDB
+# Configuration MongoDB et Postgres via Variables d'Environnement
 MONGO_CONFIG = {
     "host": os.getenv("MONGO_HOST", "mongodb"),
     "port": int(os.getenv("MONGO_PORT", 27017)),
-    "username": "admin",
-    "password": "password",
+    "username": os.getenv("MONGO_USER", "admin"),
+    "password": os.getenv("MONGO_PASSWORD", "password"),
     "authSource": "admin"
 }
 
-# Configuration PostgreSQL
 PG_CONFIG = {
     "host": os.getenv("POSTGRES_HOST", "postgres"),
     "port": int(os.getenv("POSTGRES_PORT", 5432)),
@@ -40,64 +39,49 @@ def strip_html(text):
             return text
     return text
 
-def extract_from_mongo():
-    """Récupère les données brutes depuis MongoDB"""
+def extract_from_mongo_generator():
+    """Récupère les données brutes depuis MongoDB via un curseur (Lazy loading)"""
     client = get_mongo_client()
     db = client['events_db']
     collection = db['raw_events']
-
-    # On récupère les documents
-    data = list(collection.find({}))
-    client.close()
-    return data
-
-def transform_and_load(data):
-    """Transforme les données et les charge dans PostgreSQL"""
-    conn = get_pg_connection()
-    cur = conn.cursor()
-
-    # Dédoublonnage robuste (Aligné avec EDA)
-    unique_events = {}
-    duplicates_count = 0
     
-    print(f"--- DÉBUT PROCESSUS ---")
-    print(f"Documents bruts récupérés de MongoDB : {len(data)}")
+    # Retourne un curseur au lieu d'une liste
+    cursor = collection.find({})
+    return cursor, client
 
-    for event in data:
-        # Récupération sécurisée des champs (structure plate ou imbriquée)
-        fields = event.get('fields', {})
-        if fields is None: fields = {}
-        
-        # Stratégie de résolution de l'ID (Priorité: id > fields.id > recordid)
-        event_id = event.get('id')
-        if not event_id:
-             event_id = fields.get('id')
-        if not event_id:
-             event_id = event.get('recordid')
-        
-        if event_id:
-            event_id = str(event_id)
-            if event_id in unique_events:
-                duplicates_count += 1
-            # On stocke l'événement complet. Si doublon, on écrase avec le dernier trouvé.
-            unique_events[event_id] = event
-    
-    deduplicated_data = list(unique_events.values())
-    print(f"Doublons identifiés et filtrés : {duplicates_count}")
-    print(f"Événements uniques à charger dans Postgres : {len(deduplicated_data)}")
-
+def transform_and_load(cursor, client):
+    """Transforme les données et les charge dans PostgreSQL par lots"""
+    cur = None
+    conn = None
     try:
-        for event in deduplicated_data:
-            # Extraction des champs utiles
+        conn = get_pg_connection()
+        cur = conn.cursor()
+        
+        print(f"--- DÉBUT PROCESSUS ---")
+        
+        count = 0
+        
+        # Iteration directe sur le curseur MongoDB (Streaming, mémoire constante)
+        for event in cursor:
+            count += 1
+            if count % 1000 == 0:
+                print(f"Traitement de l'événement #{count}...")
+            
+            # Récupération sécurisée des champs
+            # L'API v2.1 retourne une structure plate, v1 utilise 'fields'.
+            # On considère 'event' comme la source principale, et 'fields' comme fallback ou structure imbriquée.
             fields = event.get('fields')
             if not fields:
-                fields = event
-
-            # ID de l'événement (On le recalcule proprement)
+                fields = event 
+            
+            # ID de l'événement
             event_id = event.get('id') or fields.get('id') or event.get('recordid')
+            if not event_id:
+                continue
+                
             event_id = str(event_id)
             
-            # 1. Gestion de la Dimension Lieu
+            # --- 1. Dimension Lieu ---
             nom_lieu = fields.get('nom_de_lieu') or fields.get('lieu_nom') or fields.get('address_name')
             adresse = fields.get('adresse_de_lieu') or fields.get('lieu_adresse') or fields.get('address_street')
             code_postal = fields.get('code_postal') or fields.get('lieu_cp') or fields.get('address_zipcode')
@@ -114,24 +98,31 @@ def transform_and_load(data):
 
             lieu_id = None
             if nom_lieu:
-                # Truncate and handle None
-                nom_lieu = nom_lieu[:255]
+                # Truncate string fields
+                nom_lieu = (nom_lieu)[:255]
                 adresse = (adresse or "")[:255]
                 code_postal = (code_postal or "")[:10]
                 ville = (ville or "")[:100]
 
-                # On essaie d'insérer, si conflit on update (pour récupérer l'id via RETURNING ou SELECT)
                 cur.execute("""
                     INSERT INTO dim_lieu (nom_lieu, adresse, code_postal, ville, lat, lon)
                     VALUES (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (nom_lieu, adresse) DO UPDATE SET nom_lieu = EXCLUDED.nom_lieu
                     RETURNING id;
                 """, (nom_lieu, adresse, code_postal, ville, lat, lon))
+                
+                # Fetch result safely
                 result = cur.fetchone()
                 if result:
                     lieu_id = result[0]
+                else:
+                    # Dans le cas rare où aucun id n'est retourné (ex: concurrence), on fait un select
+                     cur.execute("SELECT id FROM dim_lieu WHERE nom_lieu = %s AND adresse = %s", (nom_lieu, adresse))
+                     res = cur.fetchone()
+                     if res: lieu_id = res[0]
 
-            # 2. Gestion de la Dimension Catégorie
+
+            # --- 2. Dimension Catégorie ---
             categorie_raw = fields.get('category') or fields.get('categorie') or fields.get('qfap_tags')
             categorie_id = None
 
@@ -147,8 +138,12 @@ def transform_and_load(data):
                 result = cur.fetchone()
                 if result:
                     categorie_id = result[0]
+                else:
+                    cur.execute("SELECT id FROM dim_categorie WHERE categorie = %s", (cat_name,))
+                    res = cur.fetchone()
+                    if res: categorie_id = res[0]
 
-            # 3. Gestion de la Dimension Date (Date de début)
+            # --- 3. Dimension Date ---
             date_debut_str = fields.get('date_start') or fields.get('date_debut')
             date_debut = None
             if date_debut_str:
@@ -182,41 +177,47 @@ def transform_and_load(data):
                 except ValueError:
                     pass
 
-            # 4. Insertion dans la Table de Fait
+            # --- 4. Table de Fait ---
             titre = fields.get('title') or fields.get('titre')
             
-            # Nettoyage HTML de la description (EDA Finding 3.1)
+            # Nettoyage HTML
             description_raw = fields.get('description') or fields.get('lead_text')
             description = strip_html(description_raw)
             
             url = fields.get('url') or fields.get('link') or fields.get('contact_url')
             image_url = fields.get('cover_url') or fields.get('image_cover')
             prix_detail = fields.get('price_detail') or fields.get('prix')
+            type_prix = fields.get('price_type') or fields.get('access_type')
 
+            # Upsert into Fact Table
             cur.execute("""
-                INSERT INTO fait_evenement (id, titre, description, date_debut, date_fin, url, image_url, prix_detail, lieu_id, categorie_id)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO fait_evenement (id, titre, description, date_debut, date_fin, url, image_url, prix_detail, lieu_id, categorie_id, type_prix)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET
                     titre = EXCLUDED.titre,
                     description = EXCLUDED.description,
+                    type_prix = EXCLUDED.type_prix,
                     updated_at = CURRENT_TIMESTAMP;
-            """, (event_id, titre, description, date_debut, date_fin, url, image_url, prix_detail, lieu_id, categorie_id))
+            """, (event_id, titre, description, date_debut, date_fin, url, image_url, prix_detail, lieu_id, categorie_id, type_prix))
 
         conn.commit()
-        print(f"Transformation et chargement terminés.")
+        print(f"Transformation et chargement terminés. {count} événements traités.")
 
     except Exception as e:
         print(f"Erreur lors du chargement : {e}")
-        conn.rollback()
+        if conn:
+            conn.rollback()
     finally:
-        cur.close()
-        conn.close()
+        if cur: cur.close()
+        if conn: conn.close()
+        if client: client.close()
+
+def main():
+    try:
+        cursor, client = extract_from_mongo_generator()
+        transform_and_load(cursor, client)
+    except Exception as e:
+        print(f"Critical error in ETL process: {e}")
 
 if __name__ == "__main__":
-    print("Démarrage du processus ETL...")
-    # La création des tables est gérée par docker-entrypoint-initdb.d/init_dw.sql
-    raw_data = extract_from_mongo()
-    if raw_data:
-        transform_and_load(raw_data)
-    else:
-        print("Aucune donnée trouvée dans MongoDB.")
+    main()

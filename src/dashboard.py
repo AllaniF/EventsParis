@@ -10,18 +10,42 @@ from datetime import datetime
 st.set_page_config(page_title="Paris Events Statistics", layout="wide")
 
 # Database connection
-@st.cache_resource
 def get_connection():
+    """
+    Creates a new database connection.
+    Intentionally not cached to avoid stale connection issues in long-running containers.
+    """
+    db_host = os.getenv("POSTGRES_HOST", "postgres")
+    db_port = int(os.getenv("POSTGRES_PORT", 5432))
+    db_user = os.getenv("POSTGRES_USER", "airflow")
+    db_password = os.getenv("POSTGRES_PASSWORD", "airflow")
+    db_name = os.getenv("POSTGRES_DB", "airflow")
+
     try:
         return psycopg2.connect(
-            host=os.getenv("POSTGRES_HOST", "postgres"),
-            port=int(os.getenv("POSTGRES_PORT", 5432)),
-            user=os.getenv("POSTGRES_USER", "airflow"),
-            password=os.getenv("POSTGRES_PASSWORD", "airflow"),
-            dbname=os.getenv("POSTGRES_DB", "airflow")
+            host=db_host,
+            port=db_port,
+            user=db_user,
+            password=db_password,
+            dbname=db_name
         )
+    except psycopg2.OperationalError:
+        # Fallback for local testing outside Docker
+        if db_host == "postgres":
+            try:
+                return psycopg2.connect(
+                    host="localhost",
+                    port=5433, # Port mapped in docker-compose
+                    user=db_user,
+                    password=db_password,
+                    dbname=db_name
+                )
+            except Exception:
+                pass
+        st.error(f"Failed to connect to database at {db_host}:{db_port}")
+        return None
     except Exception as e:
-        st.error(f"Failed to connect to database: {e}")
+        st.error(f"Database connection error: {e}")
         return None
 
 def load_data(query, conn):
@@ -54,6 +78,9 @@ def main():
         col2.metric("Venues Referenced", f"{df_kpi['total_venues'][0]:,}")
         col3.metric("Cities Covered", f"{df_kpi['total_cities'][0]}")
         col4.metric("Event Categories", f"{df_kpi['total_categories'][0]}")
+    else:
+        st.warning("⚠️ No data found in the warehouse. Please ensure the ETL DAG 'extract_events_dag' has run successfully.")
+        return
 
     st.markdown("---")
 
@@ -198,6 +225,31 @@ def main():
                              hole=0.4,
                              color_discrete_sequence=px.colors.sequential.Teal)
             st.plotly_chart(fig_dur, use_container_width=True)
+
+    # --- 5. Price Analysis ---
+    st.subheader("Access & Pricing")
+    
+    query_price = """
+        SELECT COALESCE(type_prix, 'Inconnu') as price_type, COUNT(*) as count
+        FROM fait_evenement
+        GROUP BY 1
+        ORDER BY count DESC
+    """
+    df_price = load_data(query_price, conn)
+    
+    if not df_price.empty:
+        c1, c2 = st.columns([1, 2])
+        with c1:
+            fig_price = px.pie(df_price, values='count', names='price_type',
+                               title="Free vs Paid Events",
+                               color='price_type',
+                               color_discrete_map={'gratuit': 'green', 'payant': 'orange', 'Inconnu': 'gray'})
+            st.plotly_chart(fig_price, use_container_width=True)
+        
+        with c2:
+            st.markdown("#### Pricing Details")
+            st.dataframe(df_price, hide_index=True, use_container_width=True)
+
 
 if __name__ == "__main__":
     main()

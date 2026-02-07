@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS fait_evenement (
     prix_detail TEXT,
     lieu_id INT REFERENCES dim_lieu(id),
     categorie_id INT REFERENCES dim_categorie(id),
+    type_prix VARCHAR(50),
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

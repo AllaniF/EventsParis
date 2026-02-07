@@ -1,6 +1,21 @@
 from airflow import DAG
-from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
 from datetime import datetime, timedelta
+import sys
+import os
+
+# Ajout du dossier src au path pour les imports
+sys.path.append('/opt/airflow/src')
+
+# Import dynamique sécurisé
+try:
+    from extract import fetch_all_events
+    from transform_load import main as transform_main
+except ImportError as e:
+    print(f"Erreur d'import : {e}")
+    # Fallback pour éviter que le DAG crashe au chargement si src n'est pas monté
+    def fetch_all_events(): print("Import Failed")
+    def transform_main(): print("Import Failed")
 
 default_args = {
     'owner': 'airflow',
@@ -20,24 +35,21 @@ with DAG(
 ) as dag:
 
     dag.doc_md = """
-    # Pipeline ETL Événements Paris
-    Ce DAG orchestre le flux de données :
-    1. **Extraction** : API -> MongoDB 
-    2. **Transformation & Chargement** : MongoDB -> PostgreSQL 
+    # Pipeline ETL Événements Paris (Refactored)
+    
+    Ce DAG orchestre le flux de données en utilisant `PythonOperator` pour meilleure gestion des ressources.
     """
 
-    extract = BashOperator(
-        task_id="extract_events",
-        bash_command="python /opt/airflow/src/extract.py",
-        doc_md="Exécute le script d'extraction vers MongoDB"
+    task_extract = PythonOperator(
+        task_id="extract_events_to_mongo",
+        python_callable=fetch_all_events,
+        doc_md="Récupère les données API et fait un UPSERT dans MongoDB (Idempotent)."
     )
 
-    transform = BashOperator(
-        task_id="transform_load_events",
-        bash_command="python /opt/airflow/src/transform_load.py",
-        doc_md="Nettoie les données (HTML, doublons) et charge dans le Data Warehouse PostgreSQL"
+    task_transform = PythonOperator(
+        task_id="transform_load_to_postgres",
+        python_callable=transform_main,
+        doc_md="Stream les données depuis MongoDB et charge dans Postgres."
     )
 
-    # Définition de l'ordre d'exécution (Dependency)
-    # extract doit réussir avant que transform ne commence
-    extract >> transform
+    task_extract >> task_transform

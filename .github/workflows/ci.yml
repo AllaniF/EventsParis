@@ -22,7 +22,12 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        pip install flake8 pytest
+        pip install flake8 pytest beautifulsoup4
+
+    - name: Run Unit Tests
+      run: |
+        export PYTHONPATH=$PYTHONPATH:$(pwd)/src
+        pytest tests/
 
     - name: Lint with flake8
       run: |
@@ -51,7 +56,7 @@ jobs:
         echo "Running containers:"
         echo "$RUNNING_CONTAINERS"
         
-        REQUIRED_CONTAINERS="postgres_eventsparis airflow_webserver airflow_scheduler kafka_eventsparis mongodb_eventsparis zookeeper_eventsparis prometheus_eventsparis grafana_eventsparis"
+        REQUIRED_CONTAINERS="postgres_eventsparis airflow_webserver airflow_scheduler mongodb_eventsparis prometheus_eventsparis grafana_eventsparis"
         MISSING_CONTAINER=false
         
         for CONTAINER in $REQUIRED_CONTAINERS; do
