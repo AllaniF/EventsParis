@@ -435,126 +435,60 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 25
       },
-      "id": 20,
+      "id": 30,
       "panels": [],
-      "title": "Operations & Traffic",
+      "title": "Health & Reliability",
       "type": "row"
     },
     {
       "datasource": "Prometheus",
-      "description": "Operations per second by type (Insert, Update, Delete, Query).",
+      "description": "Rate of assertions raised by the server. High user or warning assertions may indicate problems.",
       "fieldConfig": {
         "defaults": {
           "color": {
             "mode": "palette-classic"
           },
           "custom": {
-            "axisLabel": "Ops/sec",
+            "axisLabel": "Events/sec",
             "axisPlacement": "auto",
-            "barAlignment": 0,
             "drawStyle": "line",
             "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
+            "showPoints": "auto"
           }
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
-        "w": 12,
+        "h": 8,
+        "w": 24,
         "x": 0,
-        "y": 15
+        "y": 26
       },
-      "id": 22,
+      "id": 32,
       "options": {
         "legend": {
           "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom"
+          "displayMode": "table",
+          "placement": "right"
         },
         "tooltip": {
           "mode": "single",
           "sort": "none"
         }
       },
+      "pluginVersion": "8.3.3",
       "targets": [
         {
-          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"insert\"}[5m])",
-          "legendFormat": "Insert",
+          "expr": "rate(mongodb_ss_asserts[5m])",
+          "legendFormat": "{{assert_type}}",
           "refId": "A"
-        },
-        {
-          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"query\"}[5m])",
-          "legendFormat": "Query",
-          "refId": "B"
-        },
-         {
-          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"update\"}[5m])",
-          "legendFormat": "Update",
-          "refId": "C"
-        },
-         {
-          "expr": "rate(mongodb_ss_opcounters{legacy_op_type=\"delete\"}[5m])",
-          "legendFormat": "Delete",
-          "refId": "D"
         }
       ],
-      "title": "Operations Throughput",
+      "title": "System Assertions & Errors",
       "type": "timeseries"
-    },
-    {
-      "datasource": "Prometheus",
-      "description": "Network traffic (In/Out).",
-       "fieldConfig": {
-         "defaults": {
-           "color": { "mode": "palette-classic" },
-           "custom": { "axisLabel": "Bits/sec", "unit": "bps" }
-         }
-       },
-       "gridPos": { "h": 10, "w": 12, "x": 12, "y": 15 },
-       "id": 106,
-       "options": {
-         "legend": { "displayMode": "table", "placement": "bottom" }
-       },
-       "targets": [
-         { "expr": "rate(mongodb_ss_network_bytes_in[5m]) * 8", "legendFormat": "Inbound", "refId": "A" },
-         { "expr": "rate(mongodb_ss_network_bytes_out[5m]) * 8", "legendFormat": "Outbound", "refId": "B" }
-       ],
-       "title": "Network Traffic (I/O)",
-       "type": "timeseries"
-     }
+    }
   ],
   "refresh": "5s",
   "schemaVersion": 30,
