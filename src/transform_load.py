@@ -43,7 +43,8 @@ def strip_html(text: Optional[str]) -> Optional[str]:
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                return BeautifulSoup(text, "html.parser").get_text(separator=' ').strip()
+                text_clean = BeautifulSoup(text, "html.parser").get_text(separator=' ')
+                return " ".join(text_clean.split())
         except Exception:
             return text
     return text
