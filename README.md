@@ -13,6 +13,14 @@ The system is built on a containerized microservices architecture:
 - **Orchestration**: **Apache Airflow** schedules and monitors workflows.
 - **Monitoring**: **Prometheus** (Metrics) & **Grafana** (Visualization).
 
+## CI/CD & Quality Assurance
+- **GitHub Actions**: Automated CI pipeline runs on every push (tests, linting, build checks).
+- **Containerization**: Docker ensures reproducible environments across all stages.
+- **Testing**: Automated tests validate ETL logic and data integrity (`tests/` directory).
+- **Monitoring**: Continuous monitoring with Prometheus alerts and Grafana dashboards.
+- **Logging**: Centralized logging from Airflow and application scripts for auditing.
+- **Health Checks**: Automatic service health validation between components.
+
 ## Prerequisites
 Before you begin, ensure you have the following installed on your machine:
 - [Git](https://git-scm.com/)
